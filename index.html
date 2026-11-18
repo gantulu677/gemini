@@ -316,6 +316,8 @@
         let currentFeatures = [];
         let referenceImageBase64 = null;
         let referenceImageMime = null;
+        let customLogoDataUrl = null;
+        const DEFAULT_LOGO_URL = 'https://jhpbtooefyzdndstlzva.supabase.co/storage/v1/object/public/apple/logo.png';
         
         // State untuk multi-turn editing
         let conversationHistory = [];
@@ -326,6 +328,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             fetchTemplates();
+
+            // Logo upload listener
+            document.getElementById('logo-input').addEventListener('change', handleLogoUpload);
 
             // Search listener
             document.getElementById('search-input').addEventListener('input', (e) => {
@@ -547,6 +552,45 @@
             document.getElementById('ref-upload-label').textContent = 'Unggah foto produk Anda untuk digabungkan ke desain';
         }
 
+        // --- Logo Reference ---
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('File logo harus berupa gambar', 'error');
+                event.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                customLogoDataUrl = e.target.result;
+                showToast('Logo custom berhasil dipilih dan akan digunakan saat generate', 'success');
+            };
+            reader.onerror = function() {
+                showToast('Gagal membaca file logo', 'error');
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function getLogoReference() {
+            let dataUrl = customLogoDataUrl;
+            if (!dataUrl) {
+                const response = await fetch(DEFAULT_LOGO_URL);
+                if (!response.ok) throw new Error('Gagal memuat logo default');
+                const blob = await response.blob();
+                dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            }
+            const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
+            if (!matches) throw new Error('Format logo tidak valid');
+            return { mimeType: matches[1], data: matches[2] };
+        }
+
         // --- Construct Detailed Prompt ---
         function buildPromptFromForm() {
             const product = document.getElementById('field-product').value.trim();
@@ -577,6 +621,7 @@
                 prompt += `\nIMPORTANT: Feature the exact product shown in the attached reference image as the central hero product in this advertisement layout.`;
             }
 
+            prompt += `\\n\\nBRAND LOGO PLACEMENT:\\n- Use the separately attached logo reference image exactly as provided.\\n- Place the logo in the TOP-LEFT CORNER of the advertisement.\\n- Preserve the logo's original shape, proportions, colors, and details. Do not redraw, distort, recolor, stylize, or add effects to the logo.\\n- Keep the logo clearly visible with suitable padding from the image edges.\\n- Do not place other elements over the logo.`;
             return prompt;
         }
 
@@ -631,6 +676,9 @@
                         }
                     });
                 }
+
+                const logoReference = await getLogoReference();
+                userParts.push({ inlineData: { mimeType: logoReference.mimeType, data: logoReference.data } });
 
                 const initialTurn = { role: 'user', parts: userParts };
                 const payload = {
@@ -689,9 +737,15 @@
             btnRefine.disabled = true;
 
             try {
+                const logoReference = await getLogoReference();
+                const editParts = [{
+                    text: instruction + '\\n\\nKeep the supplied brand logo unchanged and positioned in the top-left corner.'
+                }, {
+                    inlineData: { mimeType: logoReference.mimeType, data: logoReference.data }
+                }];
                 const updatedHistory = [
                     ...conversationHistory,
-                    { role: 'user', parts: [{ text: instruction }] }
+                    { role: 'user', parts: editParts }
                 ];
 
                 const payload = {
