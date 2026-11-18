@@ -573,22 +573,52 @@
             reader.readAsDataURL(file);
         }
 
-        async function getLogoReference() {
-            let dataUrl = customLogoDataUrl;
-            if (!dataUrl) {
-                const response = await fetch(DEFAULT_LOGO_URL);
-                if (!response.ok) throw new Error('Gagal memuat logo default');
-                const blob = await response.blob();
-                dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-            }
-            const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
-            if (!matches) throw new Error('Format logo tidak valid');
-            return { mimeType: matches[1], data: matches[2] };
+        async function getLogoDataUrl() {
+            if (customLogoDataUrl) return customLogoDataUrl;
+            const response = await fetch(DEFAULT_LOGO_URL);
+            if (!response.ok) throw new Error('Gagal memuat logo default');
+            const blob = await response.blob();
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function overlayLogoOnImage(imageDataUrl) {
+            const logoDataUrl = await getLogoDataUrl();
+            const loadImage = (src) => new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error('Gagal memuat gambar untuk proses overlay logo'));
+                image.src = src;
+            });
+
+            const [baseImage, logoImage] = await Promise.all([
+                loadImage(imageDataUrl),
+                loadImage(logoDataUrl)
+            ]);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = baseImage.naturalWidth;
+            canvas.height = baseImage.naturalHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(baseImage, 0, 0);
+
+            const margin = Math.round(canvas.width * 0.035);
+            const maxLogoWidth = canvas.width * 0.18;
+            const maxLogoHeight = canvas.height * 0.10;
+            const scale = Math.min(
+                maxLogoWidth / logoImage.naturalWidth,
+                maxLogoHeight / logoImage.naturalHeight,
+                1
+            );
+            const logoWidth = Math.round(logoImage.naturalWidth * scale);
+            const logoHeight = Math.round(logoImage.naturalHeight * scale);
+            context.drawImage(logoImage, margin, margin, logoWidth, logoHeight);
+
+            return canvas.toDataURL('image/png');
         }
 
         // --- Construct Detailed Prompt ---
@@ -621,7 +651,6 @@
                 prompt += `\nIMPORTANT: Feature the exact product shown in the attached reference image as the central hero product in this advertisement layout.`;
             }
 
-            prompt += `\n\nBRAND LOGO PLACEMENT:\n- Use the separately attached logo reference image exactly as provided.\n- Place the logo in the TOP-LEFT CORNER of the advertisement.\n- Preserve the logo's original shape, proportions, colors, and details. Do not redraw, distort, recolor, stylize, or add effects to the logo.\n- Keep the logo clearly visible with suitable padding from the image edges.\n- Do not place other elements over the logo.`;
             return prompt;
         }
 
@@ -677,9 +706,6 @@
                     });
                 }
 
-                const logoReference = await getLogoReference();
-                userParts.push({ inlineData: { mimeType: logoReference.mimeType, data: logoReference.data } });
-
                 const initialTurn = { role: 'user', parts: userParts };
                 const payload = {
                     contents: [initialTurn],
@@ -711,7 +737,8 @@
                 // Simpan history untuk multi-turn editing
                 conversationHistory = [initialTurn, modelContent];
 
-                const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                const generatedImageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                const imageUrl = await overlayLogoOnImage(generatedImageUrl);
                 displayGeneratedImage(imageUrl);
                 showToast('Gambar iklan berhasil dibuat!', 'success');
 
@@ -737,15 +764,9 @@
             btnRefine.disabled = true;
 
             try {
-                const logoReference = await getLogoReference();
-                const editParts = [{
-                    text: instruction + '\n\nKeep the supplied brand logo unchanged and positioned in the top-left corner.'
-                }, {
-                    inlineData: { mimeType: logoReference.mimeType, data: logoReference.data }
-                }];
                 const updatedHistory = [
                     ...conversationHistory,
-                    { role: 'user', parts: editParts }
+                    { role: 'user', parts: [{ text: instruction }] }
                 ];
 
                 const payload = {
@@ -778,7 +799,8 @@
                 conversationHistory = [...updatedHistory, modelContent];
                 inputEl.value = '';
 
-                const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                const generatedImageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                const imageUrl = await overlayLogoOnImage(generatedImageUrl);
                 displayGeneratedImage(imageUrl);
                 showToast('Revisi gambar berhasil diterapkan!', 'success');
 
