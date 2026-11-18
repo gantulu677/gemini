@@ -621,7 +621,7 @@
                 prompt += `\nIMPORTANT: Feature the exact product shown in the attached reference image as the central hero product in this advertisement layout.`;
             }
 
-            prompt += `\\n\\nBRAND LOGO PLACEMENT:\\n- Use the separately attached logo reference image exactly as provided.\\n- Place the logo in the TOP-LEFT CORNER of the advertisement.\\n- Preserve the logo's original shape, proportions, colors, and details. Do not redraw, distort, recolor, stylize, or add effects to the logo.\\n- Keep the logo clearly visible with suitable padding from the image edges.\\n- Do not place other elements over the logo.`;
+            prompt += `\n\nBRAND LOGO PLACEMENT:\n- Use the separately attached logo reference image exactly as provided.\n- Place the logo in the TOP-LEFT CORNER of the advertisement.\n- Preserve the logo's original shape, proportions, colors, and details. Do not redraw, distort, recolor, stylize, or add effects to the logo.\n- Keep the logo clearly visible with suitable padding from the image edges.\n- Do not place other elements over the logo.`;
             return prompt;
         }
 
@@ -739,7 +739,7 @@
             try {
                 const logoReference = await getLogoReference();
                 const editParts = [{
-                    text: instruction + '\\n\\nKeep the supplied brand logo unchanged and positioned in the top-left corner.'
+                    text: instruction + '\n\nKeep the supplied brand logo unchanged and positioned in the top-left corner.'
                 }, {
                     inlineData: { mimeType: logoReference.mimeType, data: logoReference.data }
                 }];
