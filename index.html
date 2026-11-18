@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Product Ad Studio — Template Generator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090b;
+            color: #fafafa;
+        }
+        h1, h2, h3, .font-display {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
+        }
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .shimmer {
+            background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-30 glass-panel border-b border-zinc-800/80 px-4 sm:px-6 py-3.5">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        AI Product Ad Studio
+                        <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            Gemini 3.1 Flash Image
+                        </span>
+                    </h1>
+                    <p class="text-xs text-zinc-400">Generator Poster Iklan Otomatis dari Template API</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="fetchTemplates()" id="btn-refresh" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-200 text-xs font-medium border border-zinc-700/50 transition-all active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refresh-icon"></i>
+                    <span class="hidden sm:inline">Muat Ulang Template</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Template Selector (3 cols on lg) -->
+        <aside class="lg:col-span-3 flex flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-4 flex flex-col h-[calc(100vh-120px)] max-h-[820px]">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+                        <i data-lucide="layout-template" class="w-4 h-4 text-indigo-400"></i>
+                        Daftar Template
+                    </h2>
+                    <span id="template-count" class="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-medium">0</span>
+                </div>
+
+                <!-- Search Input -->
+                <div class="relative mb-3">
+                    <i data-lucide="search" class="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" id="search-input" placeholder="Cari produk atau gaya..." 
+                        class="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors">
+                </div>
+
+                <!-- Template List -->
+                <div id="template-list" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <!-- Skeletons while loading -->
+                    <div class="shimmer h-20 rounded-xl"></div>
+                    <div class="shimmer h-20 rounded-xl"></div>
+                    <div class="shimmer h-20 rounded-xl"></div>
+                    <div class="shimmer h-20 rounded-xl"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Middle Column: Prompt & Template Editor (5 cols on lg) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                    <div>
+                        <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-indigo-400"></i>
+                            Konfigurasi Desain Iklan
+                        </h2>
+                        <p class="text-[11px] text-zinc-400 mt-0.5">Sesuaikan detail template sebelum membuat gambar</p>
+                    </div>
+                    <button onclick="resetCurrentTemplate()" class="text-xs text-zinc-400 hover:text-white transition-colors flex items-center gap-1" title="Kembalikan ke pengaturan asli template">
+                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset
+                    </button>
+                </div>
+
+                <!-- Form Fields -->
+                <div class="space-y-3.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Nama Produk</label>
+                            <input type="text" id="field-product" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Rasio Aspek</label>
+                            <select id="field-ratio" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                                <option value="1:1">1:1 (Square)</option>
+                                <option value="4:5" selected>4:5 (Portrait IG)</option>
+                                <option value="9:16">9:16 (Story / Reels)</option>
+                                <option value="16:9">16:9 (Landscape)</option>
+                                <option value="3:4">3:4 (Poster)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-medium text-zinc-400 mb-1">Headline Utama (Teks Besar di Gambar)</label>
+                        <input type="text" id="field-headline" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white font-medium focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-medium text-zinc-400 mb-1">Subheadline</label>
+                        <textarea id="field-subheadline" rows="2" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                    </div>
+
+                    <!-- Features Tags Editor -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-[11px] font-medium text-zinc-400">Fitur Unggulan (Poin Teks)</label>
+                            <span class="text-[10px] text-zinc-500">Tekan Enter untuk menambah</span>
+                        </div>
+                        <div id="features-container" class="flex flex-wrap gap-1.5 p-2 bg-zinc-900 border border-zinc-800 rounded-xl min-h-[42px]">
+                            <!-- Feature pills injected here -->
+                        </div>
+                        <input type="text" id="new-feature-input" placeholder="+ Tambah fitur baru..." 
+                            class="mt-1.5 w-full bg-zinc-900/50 border border-zinc-800/80 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <!-- Visual Direction Accordion / Details -->
+                    <div class="pt-1 border-t border-zinc-800/80 space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Latar Belakang (Background)</label>
+                            <textarea id="field-background" rows="2" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-medium text-zinc-400 mb-1">Gaya Layout</label>
+                                <input type="text" id="field-layout" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-zinc-400 mb-1">Kualitas & Pencahayaan</label>
+                                <input type="text" id="field-quality" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Komposisi Visual</label>
+                            <textarea id="field-composition" rows="2" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Optional Reference Product Image Upload -->
+                    <div class="pt-1 border-t border-zinc-800/80">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-medium text-zinc-400">Foto Produk Referensi (Opsional)</label>
+                            <button type="button" id="btn-clear-ref" onclick="clearReferenceImage()" class="hidden text-[11px] text-rose-400 hover:text-rose-300">Hapus Foto</button>
+                        </div>
+                        <label id="ref-upload-box" class="flex items-center justify-center gap-2 w-full p-3 border border-dashed border-zinc-700 hover:border-indigo-500 rounded-xl bg-zinc-900/40 cursor-pointer transition-colors">
+                            <i data-lucide="image-plus" class="w-4 h-4 text-zinc-400"></i>
+                            <span id="ref-upload-label" class="text-xs text-zinc-400">Unggah foto produk Anda untuk digabungkan ke desain</span>
+                            <input type="file" id="ref-image-input" accept="image/*" class="hidden" onchange="handleReferenceUpload(event)">
+                        </label>
+                        <div id="ref-preview-container" class="hidden mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-zinc-700">
+                            <img id="ref-preview-img" src="" alt="Referensi" class="w-full h-full object-cover">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button onclick="generateAdImage()" id="btn-generate" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="wand-2" class="w-4 h-4"></i>
+                    <span>Buat Gambar Iklan Sekarang</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Right Column: Result Preview & Refinement (4 cols on lg) -->
+        <section class="lg:col-span-4 flex flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-5 flex flex-col h-full">
+                <div class="flex items-center justify-between border-b border-zinc-800/80 pb-3 mb-4">
+                    <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <i data-lucide="image" class="w-4 h-4 text-pink-400"></i>
+                        Hasil Render
+                    </h2>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="copyPromptToClipboard()" class="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors" title="Salin Prompt Lengkap">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="downloadGeneratedImage()" id="btn-download" disabled class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-medium transition-colors">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>Unduh</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas / Preview Viewport -->
+                <div class="flex-1 flex flex-col items-center justify-center bg-zinc-950/90 rounded-2xl border border-zinc-800/90 p-4 relative overflow-hidden min-h-[380px]">
+                    
+                    <!-- Empty State -->
+                    <div id="state-empty" class="text-center max-w-xs space-y-3">
+                        <div class="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
+                            <i data-lucide="sparkles" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-sm font-medium text-zinc-300">Siap Membuat Visual Iklan</h3>
+                        <p class="text-xs text-zinc-500 leading-relaxed">
+                            Pilih salah satu template produk di sebelah kiri, sesuaikan teks jika perlu, lalu klik <strong>Buat Gambar Iklan Sekarang</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="state-loading" class="hidden flex-col items-center justify-center text-center space-y-4 z-10">
+                        <div class="relative w-16 h-16">
+                            <div class="absolute inset-0 rounded-full border-2 border-indigo-500/20"></div>
+                            <div class="absolute inset-0 rounded-full border-2 border-t-indigo-500 animate-spin"></div>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i data-lucide="wand-2" class="w-6 h-6 text-indigo-400 animate-pulse"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-white">Merender Desain Produk...</p>
+                            <p class="text-xs text-zinc-400 mt-1" id="loading-subtext">Menyusun tipografi, pencahayaan studio & komposisi</p>
+                        </div>
+                    </div>
+
+                    <!-- Result Image -->
+                    <div id="state-result" class="hidden w-full h-full flex items-center justify-center">
+                        <img id="generated-image" src="" alt="Hasil Iklan Produk" class="max-h-[480px] w-auto rounded-xl shadow-2xl object-contain border border-zinc-800">
+                    </div>
+                </div>
+
+                <!-- Multi-Turn Quick Edit Box (Appears after image is generated) -->
+                <div id="quick-edit-panel" class="hidden mt-4 pt-3 border-t border-zinc-800/80 space-y-2">
+                    <label class="block text-[11px] font-medium text-zinc-400 flex items-center gap-1.5">
+                        <i data-lucide="message-square-plus" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        Revisi Cepat Hasil Gambar (Multi-Turn Edit)
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="text" id="edit-instruction-input" placeholder="Misal: Ubah latar jadi warna gelap, perbesar teks..." 
+                            class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500">
+                        <button onclick="refineGeneratedImage()" id="btn-refine" class="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-indigo-600 text-white text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0">
+                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                            <span>Revisi</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History Thumbnails -->
+                <div id="history-section" class="hidden mt-4 pt-3 border-t border-zinc-800/80">
+                    <p class="text-[11px] font-medium text-zinc-400 mb-2">Riwayat Sesi Ini</p>
+                    <div id="history-list" class="flex gap-2 overflow-x-auto pb-1"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- Configuration & State ---
+        const TEMPLATE_API_URL = 'https://bkyqbbigfvfaobblxziu.supabase.co/functions/v1/get-image-template';
+        const GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image';
+        const apiKey = ""; // Otomatis disediakan oleh environment saat runtime
+
+        let allTemplates = [];
+        let selectedTemplate = null;
+        let currentFeatures = [];
+        let referenceImageBase64 = null;
+        let referenceImageMime = null;
+        
+        // State untuk multi-turn editing
+        let conversationHistory = [];
+        let currentGeneratedImageUrl = null;
+        let sessionHistory = [];
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            fetchTemplates();
+
+            // Search listener
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                renderTemplateList(e.target.value);
+            });
+
+            // Add feature on Enter
+            document.getElementById('new-feature-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val) {
+                        currentFeatures.push(val);
+                        e.target.value = '';
+                        renderFeatures();
+                    }
+                }
+            });
+
+            // Refine on Enter
+            document.getElementById('edit-instruction-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    refineGeneratedImage();
+                }
+            });
+        });
+
+        // --- Toast Notification ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                info: 'bg-zinc-900 border-zinc-700 text-zinc-100',
+                success: 'bg-emerald-950/90 border-emerald-700/70 text-emerald-200',
+                error: 'bg-rose-950/90 border-rose-700/70 text-rose-200'
+            };
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-xl text-xs font-medium flex items-center gap-2.5 transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // --- Fetch Templates from Supabase Edge Function ---
+        async function fetchTemplates() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.classList.add('animate-spin');
+            
+            try {
+                const response = await fetch(TEMPLATE_API_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const json = await response.json();
+                if (json.success && Array.isArray(json.data)) {
+                    allTemplates = json.data;
+                    document.getElementById('template-count').textContent = allTemplates.length;
+                    renderTemplateList();
+                    
+                    if (allTemplates.length > 0 && !selectedTemplate) {
+                        selectTemplate(allTemplates[0]);
+                    }
+                    showToast(`Berhasil memuat ${allTemplates.length} template iklan`, 'success');
+                } else {
+                    throw new Error('Format respons JSON tidak sesuai');
+                }
+            } catch (error) {
+                console.error('Error fetching templates:', error);
+                showToast('Gagal memuat template dari server. Menggunakan data fallback.', 'error');
+                // Fallback jika koneksi bermasalah
+                allTemplates = [
+                    {
+                        id: "fallback-1",
+                        product: "Apple AirPods 4",
+                        headline: "Sound, redesigned.",
+                        subheadline: "Comfortable everyday listening with an effortless wireless experience.",
+                        features: ["Refined open-ear fit", "Spatial Audio", "Clear calls", "USB-C charging"],
+                        background: "Bright white background with soft floating shapes and gentle acoustic-wave accents",
+                        layout: "Clean audio product advertising",
+                        composition: "AirPods and charging case in a floating hero arrangement, headline above, features below, balanced whitespace",
+                        quality: "Photorealistic premium audio product render, clean reflections, soft shadows, crisp details",
+                        ratio: "4:5"
+                    }
+                ];
+                document.getElementById('template-count').textContent = allTemplates.length;
+                renderTemplateList();
+                selectTemplate(allTemplates[0]);
+            } finally {
+                refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // --- Render Template List ---
+        function renderTemplateList(filterText = '') {
+            const listEl = document.getElementById('template-list');
+            const query = filterText.toLowerCase();
+            
+            const filtered = allTemplates.filter(item => 
+                (item.product && item.product.toLowerCase().includes(query)) ||
+                (item.headline && item.headline.toLowerCase().includes(query)) ||
+                (item.layout && item.layout.toLowerCase().includes(query))
+            );
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div class="text-center py-8 text-xs text-zinc-500">Tidak ada template yang cocok.</div>`;
+                return;
+            }
+
+            listEl.innerHTML = filtered.map(item => {
+                const isSelected = selectedTemplate && selectedTemplate.id === item.id;
+                return `
+                    <button onclick='selectTemplateById("${item.id}")' 
+                        class="w-full text-left p-3 rounded-xl border transition-all ${
+                            isSelected 
+                            ? 'bg-indigo-600/15 border-indigo-500/60 shadow-sm' 
+                            : 'bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/60 hover:border-zinc-700'
+                        }">
+                        <div class="flex items-start justify-between gap-2">
+                            <span class="text-xs font-semibold text-white line-clamp-1">${escapeHtml(item.product)}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono shrink-0">${escapeHtml(item.ratio || '4:5')}</span>
+                        </div>
+                        <p class="text-[11px] text-indigo-300 font-medium mt-1 line-clamp-1">"${escapeHtml(item.headline)}"</p>
+                        <p class="text-[10px] text-zinc-500 mt-1 line-clamp-1">${escapeHtml(item.layout)}</p>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectTemplateById(id) {
+            const found = allTemplates.find(t => t.id === id);
+            if (found) selectTemplate(found);
+        }
+
+        function selectTemplate(template) {
+            selectedTemplate = template;
+            document.getElementById('field-product').value = template.product || '';
+            document.getElementById('field-headline').value = template.headline || '';
+            document.getElementById('field-subheadline').value = template.subheadline || '';
+            document.getElementById('field-background').value = template.background || '';
+            document.getElementById('field-layout').value = template.layout || '';
+            document.getElementById('field-composition').value = template.composition || '';
+            document.getElementById('field-quality').value = template.quality || '';
+            
+            const ratioSelect = document.getElementById('field-ratio');
+            const validRatios = ['1:1', '4:5', '9:16', '16:9', '3:4'];
+            ratioSelect.value = validRatios.includes(template.ratio) ? template.ratio : '4:5';
+
+            currentFeatures = Array.isArray(template.features) ? [...template.features] : [];
+            renderFeatures();
+            renderTemplateList(document.getElementById('search-input').value);
+        }
+
+        function resetCurrentTemplate() {
+            if (selectedTemplate) {
+                selectTemplate(selectedTemplate);
+                showToast('Pengaturan dikembalikan ke template asli');
+            }
+        }
+
+        // --- Features Pill Management ---
+        function renderFeatures() {
+            const container = document.getElementById('features-container');
+            if (currentFeatures.length === 0) {
+                container.innerHTML = `<span class="text-[11px] text-zinc-600 px-1 py-0.5">Belum ada fitur ditambahkan</span>`;
+                return;
+            }
+            container.innerHTML = currentFeatures.map((feat, idx) => `
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-200 text-[11px]">
+                    ${escapeHtml(feat)}
+                    <button type="button" onclick="removeFeature(${idx})" class="hover:text-white ml-0.5">
+                        &times;
+                    </button>
+                </span>
+            `).join('');
+        }
+
+        function removeFeature(index) {
+            currentFeatures.splice(index, 1);
+            renderFeatures();
+        }
+
+        // --- Reference Image Upload ---
+        function handleReferenceUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
+                if (matches) {
+                    referenceImageMime = matches[1];
+                    referenceImageBase64 = matches[2];
+                    
+                    document.getElementById('ref-preview-img').src = dataUrl;
+                    document.getElementById('ref-preview-container').classList.remove('hidden');
+                    document.getElementById('btn-clear-ref').classList.remove('hidden');
+                    document.getElementById('ref-upload-label').textContent = file.name;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearReferenceImage() {
+            referenceImageBase64 = null;
+            referenceImageMime = null;
+            document.getElementById('ref-image-input').value = '';
+            document.getElementById('ref-preview-container').classList.add('hidden');
+            document.getElementById('btn-clear-ref').classList.add('hidden');
+            document.getElementById('ref-upload-label').textContent = 'Unggah foto produk Anda untuk digabungkan ke desain';
+        }
+
+        // --- Construct Detailed Prompt ---
+        function buildPromptFromForm() {
+            const product = document.getElementById('field-product').value.trim();
+            const headline = document.getElementById('field-headline').value.trim();
+            const subheadline = document.getElementById('field-subheadline').value.trim();
+            const background = document.getElementById('field-background').value.trim();
+            const layout = document.getElementById('field-layout').value.trim();
+            const composition = document.getElementById('field-composition').value.trim();
+            const quality = document.getElementById('field-quality').value.trim();
+
+            const featuresText = currentFeatures.length > 0 
+                ? currentFeatures.map(f => `• ${f}`).join('\n') 
+                : '';
+
+            let prompt = `Create a professional commercial product advertisement poster for "${product}".\n\n`;
+            prompt += `TYPOGRAPHY & TEXT ELEMENTS (Render accurately and legibly):\n`;
+            if (headline) prompt += `- Main Headline: "${headline}" (bold, modern, high-contrast typography)\n`;
+            if (subheadline) prompt += `- Subheadline: "${subheadline}" (clean, refined secondary typography)\n`;
+            if (featuresText) prompt += `- Key Features Callouts:\n${featuresText}\n\n`;
+            
+            prompt += `VISUAL & ART DIRECTION:\n`;
+            if (layout) prompt += `- Advertising Style / Layout: ${layout}\n`;
+            if (composition) prompt += `- Composition: ${composition}\n`;
+            if (background) prompt += `- Background Environment: ${background}\n`;
+            if (quality) prompt += `- Rendering Quality & Lighting: ${quality}\n`;
+
+            if (referenceImageBase64) {
+                prompt += `\nIMPORTANT: Feature the exact product shown in the attached reference image as the central hero product in this advertisement layout.`;
+            }
+
+            return prompt;
+        }
+
+        function copyPromptToClipboard() {
+            const prompt = buildPromptFromForm();
+            const textarea = document.createElement('textarea');
+            textarea.value = prompt;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Prompt lengkap disalin ke clipboard', 'success');
+        }
+
+        // --- Exponential Backoff Fetch Helper ---
+        async function fetchWithBackoff(url, options, maxRetries = 4) {
+            let delay = 1000;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 || response.status >= 500) {
+                        if (attempt === maxRetries) return response;
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2;
+                        continue;
+                    }
+                    return response;
+                } catch (err) {
+                    if (attempt === maxRetries) throw err;
+                    await new Promise(res => setTimeout(res, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // --- Generate Image via Gemini 3.1 Flash Image ---
+        async function generateAdImage() {
+            const btn = document.getElementById('btn-generate');
+            const ratio = document.getElementById('field-ratio').value || '4:5';
+            const promptText = buildPromptFromForm();
+
+            setUIState('loading', 'Menghasilkan desain poster iklan dengan Gemini 3.1 Flash Image...');
+            btn.disabled = true;
+
+            try {
+                const userParts = [{ text: promptText }];
+                if (referenceImageBase64 && referenceImageMime) {
+                    userParts.push({
+                        inlineData: {
+                            mimeType: referenceImageMime,
+                            data: referenceImageBase64
+                        }
+                    });
+                }
+
+                const initialTurn = { role: 'user', parts: userParts };
+                const payload = {
+                    contents: [initialTurn],
+                    generationConfig: {
+                        responseModalities: ['IMAGE'],
+                        imageConfig: { aspectRatio: ratio }
+                    }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent?key=${apiKey}`;
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error?.message || 'Gagal memanggil API Gemini');
+                }
+
+                const modelContent = result?.candidates?.[0]?.content;
+                const imagePart = modelContent?.parts?.find(p => p.inlineData);
+
+                if (!imagePart) {
+                    throw new Error('Model tidak mengembalikan data gambar. Coba sesuaikan teks prompt.');
+                }
+
+                // Simpan history untuk multi-turn editing
+                conversationHistory = [initialTurn, modelContent];
+
+                const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                displayGeneratedImage(imageUrl);
+                showToast('Gambar iklan berhasil dibuat!', 'success');
+
+            } catch (error) {
+                console.error('Generation Error:', error);
+                showToast(error.message || 'Terjadi kesalahan saat membuat gambar', 'error');
+                setUIState(currentGeneratedImageUrl ? 'result' : 'empty');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // --- Multi-Turn Image Refinement ---
+        async function refineGeneratedImage() {
+            const inputEl = document.getElementById('edit-instruction-input');
+            const instruction = inputEl.value.trim();
+            if (!instruction || conversationHistory.length === 0) return;
+
+            const btnRefine = document.getElementById('btn-refine');
+            const ratio = document.getElementById('field-ratio').value || '4:5';
+
+            setUIState('loading', `Menerapkan revisi: "${instruction}"...`);
+            btnRefine.disabled = true;
+
+            try {
+                const updatedHistory = [
+                    ...conversationHistory,
+                    { role: 'user', parts: [{ text: instruction }] }
+                ];
+
+                const payload = {
+                    contents: updatedHistory,
+                    generationConfig: {
+                        responseModalities: ['IMAGE'],
+                        imageConfig: { aspectRatio: ratio }
+                    }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent?key=${apiKey}`;
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error?.message || 'Gagal merevisi gambar');
+                }
+
+                const modelContent = result?.candidates?.[0]?.content;
+                const imagePart = modelContent?.parts?.find(p => p.inlineData);
+
+                if (!imagePart) {
+                    throw new Error('Gagal mendapatkan gambar hasil revisi.');
+                }
+
+                conversationHistory = [...updatedHistory, modelContent];
+                inputEl.value = '';
+
+                const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                displayGeneratedImage(imageUrl);
+                showToast('Revisi gambar berhasil diterapkan!', 'success');
+
+            } catch (error) {
+                console.error('Refine Error:', error);
+                showToast(error.message || 'Gagal merevisi gambar', 'error');
+                setUIState('result');
+            } finally {
+                btnRefine.disabled = false;
+            }
+        }
+
+        // --- Display & History Management ---
+        function displayGeneratedImage(imageUrl) {
+            currentGeneratedImageUrl = imageUrl;
+            const imgEl = document.getElementById('generated-image');
+            imgEl.src = imageUrl;
+
+            setUIState('result');
+            document.getElementById('btn-download').disabled = false;
+            document.getElementById('quick-edit-panel').classList.remove('hidden');
+
+            // Add to session history
+            const productName = document.getElementById('field-product').value || 'Ad';
+            sessionHistory.unshift({ url: imageUrl, title: productName, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+            renderSessionHistory();
+        }
+
+        function renderSessionHistory() {
+            const section = document.getElementById('history-section');
+            const list = document.getElementById('history-list');
+            if (sessionHistory.length === 0) return;
+
+            section.classList.remove('hidden');
+            list.innerHTML = sessionHistory.map((item, idx) => `
+                <button onclick="selectFromHistory(${idx})" class="relative group shrink-0 w-14 h-16 rounded-lg overflow-hidden border ${item.url === currentGeneratedImageUrl ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-zinc-800'}">
+                    <img src="${item.url}" class="w-full h-full object-cover" alt="${escapeHtml(item.title)}">
+                </button>
+            `).join('');
+        }
+
+        function selectFromHistory(idx) {
+            const item = sessionHistory[idx];
+            if (item) {
+                currentGeneratedImageUrl = item.url;
+                document.getElementById('generated-image').src = item.url;
+                setUIState('result');
+                renderSessionHistory();
+            }
+        }
+
+        function setUIState(state, loadingText = '') {
+            const emptyEl = document.getElementById('state-empty');
+            const loadingEl = document.getElementById('state-loading');
+            const resultEl = document.getElementById('state-result');
+
+            emptyEl.classList.add('hidden');
+            loadingEl.classList.add('hidden');
+            loadingEl.classList.remove('flex');
+            resultEl.classList.add('hidden');
+
+            if (state === 'empty') {
+                emptyEl.classList.remove('hidden');
+            } else if (state === 'loading') {
+                if (loadingText) document.getElementById('loading-subtext').textContent = loadingText;
+                loadingEl.classList.remove('hidden');
+                loadingEl.classList.add('flex');
+            } else if (state === 'result') {
+                resultEl.classList.remove('hidden');
+            }
+        }
+
+        function downloadGeneratedImage() {
+            if (!currentGeneratedImageUrl) return;
+            const product = (document.getElementById('field-product').value || 'product-ad')
+                .toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const link = document.createElement('a');
+            link.href = currentGeneratedImageUrl;
+            link.download = `${product}-${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
